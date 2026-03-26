@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="header"><button onclick="window.location.href='/last_result'" class="back-arrow">←</button><h1>Official Report</h1></div>
+    <div class="card">
+        <div id="report-box"></div>
+        <button class="btn btn-blue" style="background:#0ea5e9; margin-top:20px;" onclick="mail()">📧 Email Report</button>
+        <button class="btn btn-blue" style="background:#25D366; color:white;" onclick="wa()">📱 WhatsApp GHMC</button>
+        <button class="btn btn-outline" onclick="ghmc()">🏛️ Lodge on GHMC (1‑click)</button>
+        <button class="btn btn-outline" onclick="window.location.href='/'">🏠 Go Home</button>
+    </div>
+</div>
+<script>
+const d = JSON.parse(sessionStorage.getItem('current_complaint'));
+const photoLinks = d.all_images.map(img => `${window.location.origin}/static/results/${img}`).join('\n');
+const mapLine = (d.lat && d.lon) ? `\n🗺️ Map: https://maps.google.com/maps?q=${d.lat},${d.lon}` : '';
+const msg = `*AI POTHOLE REPORT*\n------------------\n📅 Date: ${d.date}\n⚠️ Count: ${d.potholes}\n📍 Location: ${d.address}\n📌 Latitude: ${d.lat}\n📌 Longitude: ${d.lon}${mapLine}\n🖼️ Evidence:\n${photoLinks}`;
+document.getElementById('report-box').innerText = msg;
+async function wa() { 
+    const ghmcNumber = '8125966586';
+    const country = '91';
+    window.open(`https://wa.me/${country}${ghmcNumber}?text=${encodeURIComponent(msg)}`, "_blank"); 
+}
+
+
+
+function mail() { window.location.href = `mailto:ghmc@hyderabad.gov.in?subject=Pothole Repair&body=${encodeURIComponent(msg)}`; }
+async function ghmc() {
+    // Copy report text so user can paste directly into GHMC grievance form
+    try {
+        await navigator.clipboard.writeText(msg);
+        alert("Report copied. Preparing GHMC payload on server and opening GHMC page. After login (OTP), run the local script to auto-fill.");
+    } catch (e) {
+        // Fallback: still open the page even if clipboard permission denied
+        alert("Preparing GHMC payload on server. If copy failed, copy the report manually.");
+    }
+
+    // Build payload from the saved session data and send to server
+    const payload = { potholes: d.potholes, address: d.address, lat: d.lat, lon: d.lon, all_images: d.all_images, date: d.date, message: msg };
+    try {
+        await fetch('/prepare_ghmc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        alert('GHMC payload saved on server (ghmc_payload.json). Run: python scripts/ghmc_submit.py locally to auto-fill the GHMC form.');
+    } catch (err) {
+        console.error('Failed to save payload:', err);
+        alert('Could not save GHMC payload on server. The page will still open so you can paste the report manually.');
+    }
+
+    // Official GHMC e-Complaints -> Lodge Grievance page (OTP-based)
+    window.open("https://igs.ghmc.gov.in/operator/send_otp_mobile", "_blank");
+}
+</script>
+</body>
+</html>

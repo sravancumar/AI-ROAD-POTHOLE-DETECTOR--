@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version }}">
+</head>
+<body onload="save()">
+<div class="app-shell">
+    <div class="header"><a href="/" class="back-arrow">←</a><h1>Results</h1></div>
+    <div class="card" style="text-align:center;">
+        <h1 id="potholeCount" style="color:var(--blue); font-size:45px; margin:0;">{{ potholes }}</h1>
+        <p>Potholes Found</p>
+        <p id="addressLine" style="font-size:11px; margin-bottom:10px;">📍 {{ address }}</p>
+        <div id="mapContainer">
+        {% if has_location %}
+            <iframe width="100%" height="180" style="border-radius:15px; border:none;" 
+                src="https://maps.google.com/maps?q={{ lat }},{{ lon }}&z=15&output=embed">
+            </iframe>
+        {% else %}
+            <p style="font-size:12px; color:#64748b; margin:10px 0;">📍 Enable location when detecting to see map.</p>
+        {% endif %}
+        </div>
+    </div>
+    <div class="card">
+        <div class="image-grid">
+            {% for img in images %} <img src="/static/results/{{img}}"> {% endfor %}
+        </div>
+        <button class="btn btn-blue" onclick="go()">📢 Generate Report</button>
+        <button class="btn btn-outline" onclick="window.location.href='/'">🏠 Go Home</button>
+    </div>
+</div>
+<script>
+const reportDate = new Date().toLocaleString();
+const images = {{ images|tojson }};
+const potholesCount = {{ potholes }};
+const address = {{ address|tojson }};
+let lat = {{ lat|tojson }};
+let lon = {{ lon|tojson }};
+
+function save() {
+    var h = JSON.parse(localStorage.getItem('pothole_history') || '[]');
+    var fullImgs = images.map(function(img) { return window.location.origin + '/static/results/' + img; });
+    var item = { potholes: potholesCount, address: address, lat: lat, lon: lon, images: fullImgs, date: reportDate };
+    h.unshift(item);
+    localStorage.setItem('pothole_history', JSON.stringify(h));
+    sessionStorage.setItem('last_result_item', JSON.stringify(item));
+}
+
+// If server-side location failed (no lat/lon), try to get client location here
+window.addEventListener('load', () => {
+    const hasLatLon = lat !== null && lon !== null && String(lat) !== '' && String(lon) !== '';
+    if (hasLatLon) return;
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            lat = pos.coords.latitude;
+            lon = pos.coords.longitude;
+            const addrEl = document.getElementById('addressLine');
+            if (addrEl) {
+                addrEl.textContent = `📍 Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)}`;
+            }
+            const mapDiv = document.getElementById('mapContainer');
+            if (mapDiv) {
+                mapDiv.innerHTML = `<iframe width="100%" height="180" style="border-radius:15px; border:none;" src="https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed"></iframe>`;
+            }
+        },
+        () => {
+            // silently ignore if user denies permission here
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+});
+
+function go() {
+    sessionStorage.setItem('current_complaint', JSON.stringify({
+        potholes: potholesCount,
+        address: address,
+        lat: lat,
+        lon: lon,
+        all_images: images,
+        date: reportDate
+    }));
+    window.location.href = '/complaint';
+}
+</script>
+</body>
+</html>

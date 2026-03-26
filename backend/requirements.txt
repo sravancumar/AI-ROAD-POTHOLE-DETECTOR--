@@ -1,0 +1,10 @@
+Flask==3.0.2
+gunicorn==21.2.0
+ultralytics==8.4.14
+torch==2.10.0
+onnxruntime==1.20.1
+opencv-python-headless==4.13.0.92
+numpy==2.2.6
+geopy==2.4.1
+Pillow==10.2.0
+reportlab==4.1.0

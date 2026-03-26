@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="header"><a href="/" class="back-arrow">←</a><h1>Results</h1></div>
+    <div id="content"></div>
+</div>
+
+<script>
+function render(item) {
+    const imgs = (item.images || []).map(function(u) { return '<img src="' + u + '">'; }).join('');
+    const addr = item.address || 'Location Found';
+    const hasLoc = item.lat != null && item.lon != null && String(item.lat) !== '' && String(item.lon) !== '';
+    const mapHtml = hasLoc
+        ? '<iframe width="100%" height="180" style="border-radius:15px; border:none;" src="https://maps.google.com/maps?q=' + item.lat + ',' + item.lon + '&z=15&output=embed"></iframe>'
+        : '<p style="font-size:12px; color:#64748b; margin:10px 0;">📍 Enable location when detecting to see map.</p>';
+    document.getElementById('content').innerHTML =
+        '<div class="card" style="text-align:center;">' +
+        '<h1 style="color:var(--blue); font-size:45px; margin:0;">' + (item.potholes ?? '') + '</h1>' +
+        '<p>Potholes Found</p>' +
+        '<p style="font-size:11px; margin-bottom:10px;">📍 ' + addr + '</p>' +
+        mapHtml +
+        '</div>' +
+        '<div class="card">' +
+        '<div class="image-grid">' + imgs + '</div>' +
+        '<button class="btn btn-blue" onclick="go()">📢 Generate Report</button>' +
+        '<button class="btn btn-outline" onclick="window.location.href=\'/\'">🏠 Go Home</button>' +
+        '</div>';
+}
+
+function go() {
+    const item = JSON.parse(sessionStorage.getItem('last_result_item') || 'null')
+        || (JSON.parse(localStorage.getItem('pothole_history') || '[]')[0] || null);
+    if (!item) return;
+
+    // Convert full image URLs back to filenames for complaint template
+    const allImages = (item.images || []).map(url => url.split('/').pop());
+    sessionStorage.setItem('current_complaint', JSON.stringify({
+        potholes: item.potholes,
+        address: item.address,
+        lat: item.lat,
+        lon: item.lon,
+        all_images: allImages,
+        date: item.date || new Date().toLocaleString()
+    }));
+    window.location.href = '/complaint';
+}
+
+const fromSession = JSON.parse(sessionStorage.getItem('last_result_item') || 'null');
+const fromHistory = (JSON.parse(localStorage.getItem('pothole_history') || '[]')[0]) || null;
+const item = fromSession || fromHistory;
+
+if (!item) {
+    document.getElementById('content').innerHTML = `
+        <div class="card">
+            <h3 style="margin:0; color:var(--blue);">No recent result found</h3>
+            <p style="margin-top:10px;">Run detection once, then open Official Report again.</p>
+            <button class="btn btn-outline" onclick="window.location.href='/'">🏠 Go Home</button>
+        </div>
+    `;
+} else {
+    render(item);
+}
+</script>
+</body>
+</html>
+

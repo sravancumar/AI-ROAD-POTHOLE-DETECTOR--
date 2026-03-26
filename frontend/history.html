@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version }}">
+</head>
+<body>
+<div id="main-view" class="app-shell">
+    <div class="header"><a href="/" class="back-arrow">←</a><h1>History</h1></div>
+    <div id="list" style="flex-grow:1;"></div>
+    <div class="card" style="border:none; background:transparent;">
+        <button class="btn btn-outline" style="color:red; border-color:red;" onclick="localStorage.clear(); location.reload();">🗑️ Clear All</button>
+        <button class="btn btn-outline" onclick="window.location.href='/'">🏠 Go Home</button>
+    </div>
+</div>
+<script>
+function loadList() {
+    const h = JSON.parse(localStorage.getItem('pothole_history') || '[]');
+    const list = document.getElementById('list');
+    list.innerHTML = h.map((item, i) => `
+        <div class="card" style="margin:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div onclick="showDetail(${i})" style="flex-grow:1; cursor:pointer;">
+                <h3 style="color:var(--blue); margin:0;">${item.potholes} Potholes</h3>
+                <small>${item.date}</small>
+            </div>
+            <button onclick="deleteItem(${i})" style="background:none; border:none; color:red; font-size:20px; cursor:pointer;">🗑️</button>
+        </div>
+    `).join('');
+}
+function deleteItem(i) {
+    let h = JSON.parse(localStorage.getItem('pothole_history'));
+    h.splice(i, 1); localStorage.setItem('pothole_history', JSON.stringify(h)); loadList();
+}
+function showDetail(i) {
+    const item = JSON.parse(localStorage.getItem('pothole_history'))[i];
+    const hasLoc = item.lat != null && item.lon != null && item.lat !== '' && item.lon !== '';
+    const mapHtml = hasLoc ? `<iframe width="100%" height="180" src="https://maps.google.com/maps?q=${item.lat},${item.lon}&z=15&output=embed" title="Map"></iframe>` : '<p style="font-size:12px; color:#64748b;">📍 Location not available.</p>';
+    document.getElementById('main-view').innerHTML = `
+        <div class="header"><button onclick="location.reload()" class="back-arrow">←</button><h1>Detail</h1></div>
+        <div class="card" style="text-align:center;">
+            <h1>${item.potholes} Found</h1><p>${item.date}</p>
+            ${mapHtml}
+        </div>
+        <div class="card"><div class="image-grid">${item.images.map(img => `<img src="${img}">`).join('')}</div>
+        <button class="btn btn-blue" onclick='lodge(${JSON.stringify(item)})'>📢 Lodge Complaint Again</button></div>`;
+}
+function lodge(item) {
+    sessionStorage.setItem('current_complaint', JSON.stringify({ ...item, all_images: item.images.map(url => url.split('/').pop()) }));
+    window.location.href = '/complaint';
+}
+loadList();
+</script>
+</body>
+</html>
